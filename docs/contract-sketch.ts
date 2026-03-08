@@ -32,7 +32,7 @@ type StringTypeDecl = {type: "String"}
 type ArrayTypeDecl = {type: "Array", elementType: TypeDecl}
 
 type ObjectTypeDecl = {type: "Object", properties: Record<string, ObjectPropertyDecl>}
-v
+
 type ObjectPropertyDecl = {propertyType: TypeDecl, optional: boolean}
 
 type TupleTypeDecl = {type: "Tuple", elements: Array<TypeDecl>}

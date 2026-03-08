@@ -86,3 +86,49 @@ This avoids maintaining both a schema and a separate TypeScript type. The schema
 2. **Recursive types** - Can a type reference itself? e.g., a `TreeNode` with `children: Array<TreeNode>`. This should work with `NamedTypeRef` but worth validating.
 
 3. **Generics** - Are generic types needed? e.g., `Paginated<T>` that wraps any type with pagination metadata. This adds significant complexity and may not be worth it.
+
+## Route Definitions
+
+The sketch now includes route definitions with hierarchical groups, path parsing, and generated client/server APIs.
+
+### Strengths
+
+1. **Hierarchical groups** - Routes organized into groups with shared prefixes and params. Each group can be a potential injection point for middleware-like behavior.
+
+2. **Fluent API shape** - The generated API structure is intuitive:
+   ```typescript
+   serverApi.users(params: usersParams).account.paymentInfo.UpdateCC(request)
+   ```
+   The `users(params)` call could return an object with user-context baked in, useful for permission checks scoped to that user.
+
+3. **Unified request type** - Combining path params, query, headers, and body into a single `Request` type keeps the API surface clean.
+
+4. **Symmetry between client and server** - Both sides use the same generated types, reducing mismatches.
+
+### Considerations
+
+#### Path param coercion
+
+`path-to-regexp` extracts strings, but sometimes you want typed params like `userId: number`. Options:
+- Explicitly declare param types in the route definition
+- Infer from a named type if one matches the param name
+- Default to string, let the app coerce
+
+#### Response shape
+
+Currently `RouteResponseType` only has `body`. For completeness, may eventually want:
+- `headers` - response headers (cache-control, custom headers)
+- `status` - expected success status codes (or default to 200/201)
+
+Keeping it simple for now is reasonable.
+
+#### Context and cookies (the TBD)
+
+The mention of "additional context information" and "setting cookies" is important. Some options:
+- Request context passed as a second argument (session, auth, request metadata)
+- Response wrapper that allows setting cookies/headers alongside the body
+- Keep it out of the typed contract and handle at a different layer (middleware)
+
+#### Groups vs flat routes
+
+The group hierarchy is good for organization and shared params/middleware, but not every API needs deep nesting. A flat namespace with naming conventions (`users_account_updateCC`) might be simpler for smaller contracts. The group approach shines when there are shared params or middleware concerns at each level.
