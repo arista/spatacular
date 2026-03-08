@@ -55,6 +55,67 @@ Initial thoughts on the Spatacular overview document.
 
 6. **Bundle references** - "Fingerprinted" bundles are great. Is there a build pipeline assumption?
 
+## Real-time Updates via WebSockets
+
+The goal is to add real-time updates without introducing significant cognitive burden. The existing Command-based architecture extends naturally:
+
+- **Commands come in** (user actions, URL changes)
+- **Subscriptions push out** (server-initiated updates)
+
+### Response-declared subscriptions
+
+A Response could include a `_live` field declaring which resources should be kept in sync:
+
+```typescript
+{
+  order: { id: "order-123", total: 47.50, items: [...] },
+  customer: { id: "cust-456", name: "Alice" },
+
+  _live: ["order:order-123", "customer:cust-456"]
+}
+```
+
+The framework then:
+1. Opens/maintains subscriptions to those resources
+2. On navigation, diffs old vs new `_live` sets - subscribes to new ones, unsubscribes from dropped ones
+3. When updates arrive, patches the relevant part of the current state
+
+### Reactive flow with multindex
+
+If the client uses multindex as a pseudo-"database" displayed by brint, the framework can patch updates directly:
+
+```
+Server event → WebSocket → Framework → multindex update → brint re-renders
+```
+
+The app code never touches WebSocket handlers. It just:
+1. Returns responses with `_live` declarations
+2. Structures its state in multindex
+3. Builds views with brint that query multindex
+
+The framework invisibly keeps multindex in sync with the server. From the app's perspective, multindex *is* the data - whether it arrived from initial page load, SPA navigation, or WebSocket push is irrelevant.
+
+### Event sourcing consideration
+
+Raw events probably shouldn't flow to the client:
+- **Leaky abstraction** - Client shouldn't need to understand the event schema
+- **Security surface** - Events often contain data that shouldn't reach the client
+- **Derived state is what matters** - Client cares about current state, not event history
+
+Instead, the server projects events into full resource state snapshots that the client applies. The event store remains a server-side implementation detail.
+
+### Framework concerns
+
+**Identity/keying** - The framework needs to match incoming updates to the right spot in multindex. Probably `type + id` as a convention, or explicit keys in the `_live` declaration.
+
+**Stale subscriptions** - If the user stays on a page for a long time, do subscriptions stay open indefinitely? May need heartbeat/timeout logic.
+
+**Conflict with in-flight requests** - User edits a resource while a WebSocket update arrives with old state. The framework might need to hold off applying updates during mutations, or use versioning to ignore stale pushes.
+
+**Offline/reconnect** - When the WebSocket reconnects, the framework could re-fetch current state for all active subscriptions to catch up on missed updates.
+
+These are all framework-level concerns - the app stays unaware of the complexity.
+
 ## Notes
 
 The dependency on chchchchanges for state and brint for views makes sense - this is the "plumbing" layer between them.
