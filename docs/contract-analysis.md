@@ -158,3 +158,47 @@ The group hierarchy is good for organization and shared params/middleware, but n
 
 > Author's response - well, I'd like to see how we get along with the group-based approach.
 
+## Follow-up Analysis
+
+Based on the author's responses above, a few additional thoughts:
+
+### On generics
+
+Beyond `Paginated<T>`, common patterns that might benefit from generics include:
+- `Result<T, E>` - success/error wrapper
+- `Timestamped<T>` - adding createdAt/updatedAt
+- `Audited<T>` - who created/modified and when
+
+However, these can often be handled with intersection types or simply repeating the fields. Recommendation: defer generics unless pagination becomes painful to express without them. The complexity cost is significant.
+
+### On code generation over type inference
+
+The decision to use code generation rather than Zod-style inference is sound. Type inference is clever but has real downsides:
+- Confusing error messages when schemas get complex
+- Slow IDE performance on large schemas (TypeScript has to re-evaluate the inference chain)
+- Harder to debug when things go wrong
+
+Code generation produces explicit types that are easy to inspect and debug.
+
+### On metadata affecting the builder API
+
+Good instinct to flag this. If metadata is added after the builder API is designed, you might end up with chained methods like:
+
+```typescript
+const Order = object({
+  id: string().describe("Unique order identifier"),
+  status: literal("pending", "shipped").deprecated("Use statusV2 instead")
+})
+```
+
+vs baked-in parameters:
+
+```typescript
+const Order = object({
+  id: string({ description: "Unique order identifier" }),
+  status: literal("pending", "shipped", { deprecated: "Use statusV2 instead" })
+})
+```
+
+The chained approach is more flexible for optional metadata. Worth keeping in mind when designing the builder.
+
