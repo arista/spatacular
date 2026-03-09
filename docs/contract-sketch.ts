@@ -60,10 +60,11 @@ type RoutesEntry =
   RouteGroup
   | RouteDef
 
-// The path should be a path that can be interpreted by the "path-to-regexp" npm library.
+// The path should be a path that can be interpreted by the "path-to-regexp" npm library.  By default any params found in the path are treated as strings.  But if the params type is specified (which  must be an object type), then it will direct type conversions for the properties defined in that types.  It is an error for the params type to declare properties not found in the path.
 type RouteGroup = {
   type: "Group"
   path: string
+  params?: TypeDecl
   routes: Routes
 }
 
@@ -80,8 +81,9 @@ type RouteDef = {
 // Maybe someday add PUT, PATCH, DELETE
 type RouteMethod = "GET" | "POST"
 
-// Query, and Headers must resolve to ObjectTypes.  The param types don't need to be specified since they are inferred from the route's path declaration
+// Query, and Headers must resolve to ObjectTypes.  The param types don't need to be specified since they are inferred from the route's path declaration.  However, if those param types are specified, they can direct type conversions.  Otherwise, params are assumed to be string.  It is an error for params to specify properties not found in the path
 type RouteRequestType = {
+  params?: TypeDecl
   query?: TypeDecl
   headers?: TypeDecl
   body?: TypeDecl
